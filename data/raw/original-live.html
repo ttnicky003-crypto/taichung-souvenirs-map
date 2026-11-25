@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台中美食地圖 | 伴手禮 + 咖啡 + 甜點 + 茶館</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Noto Sans TC',sans-serif;background:#f5f5f5;color:#333;overflow:hidden;height:100vh}
+#header{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);padding:10px 16px;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 4px rgba(0,0,0,0.08);pointer-events:none}
+#header>*{pointer-events:auto}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:14px;font-weight:900;color:#222}
+.subtitle{font-size:11px;color:#888;margin-top:1px}
+.filters{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.fbtn{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1.5px solid;cursor:pointer;background:#fff;transition:all .2s;white-space:nowrap}
+.fbtn.active{color:#fff!important}
+.fbtn[data-cat="souvenir"]{color:#ea4335;border-color:#ea4335}.fbtn[data-cat="souvenir"].active{background:#ea4335}
+.fbtn[data-cat="coffee"]{color:#795548;border-color:#795548}.fbtn[data-cat="coffee"].active{background:#795548}
+.fbtn[data-cat="dessert"]{color:#e91e63;border-color:#e91e63}.fbtn[data-cat="dessert"].active{background:#e91e63}
+.fbtn[data-cat="tea"]{color:#2e7d32;border-color:#2e7d32}.fbtn[data-cat="tea"].active{background:#2e7d32}
+#map{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1}
+#sidebar{position:fixed;top:0;left:0;width:340px;height:100vh;z-index:999;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);border-right:1px solid #e0e0e0;transform:translateX(0);transition:transform .4s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column;overflow:hidden;box-shadow:2px 0 12px rgba(0,0,0,.08)}
+#sidebar.closed{transform:translateX(-100%)}
+.sidebar-header{padding:16px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sidebar-header h2{font-size:14px;font-weight:700;color:#333}
+.close-btn{width:32px;height:32px;border:1px solid #ddd;border-radius:50%;background:#fff;color:#666;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.close-btn:hover{border-color:#999;color:#333;background:#f5f5f5}
+.sidebar-list{flex:1;overflow-y:auto;padding:4px 0}
+.sidebar-list::-webkit-scrollbar{width:4px}.sidebar-list::-webkit-scrollbar-thumb{background:#ccc;border-radius:4px}
+.shop-item{padding:12px 20px;cursor:pointer;transition:background .2s;border-bottom:1px solid #f0f0f0}
+.shop-item:hover{background:#f8f8f8}.shop-item.active{background:#fff3f3}
+.shop-item .shop-cat{font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;color:#fff;display:inline-block;margin-bottom:3px}
+.shop-item .shop-name{font-size:14px;font-weight:700;color:#222;margin-bottom:3px}
+.shop-item .shop-note{font-size:11px;color:#777;line-height:1.4}
+.shop-item .shop-rating{margin-top:4px;font-size:11px;color:#f5a623;font-weight:500}
+#toggle-sidebar{position:fixed;top:50%;left:340px;z-index:1001;background:#fff;border:1px solid #ddd;border-left:none;color:#555;width:28px;height:56px;border-radius:0 8px 8px 0;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .4s cubic-bezier(.22,1,.36,1);box-shadow:2px 2px 8px rgba(0,0,0,.1);transform:translateY(-50%)}
+#toggle-sidebar:hover{background:#f5f5f5}
+#toggle-sidebar.collapsed{left:0}
+#locate-btn{position:fixed;bottom:30px;right:16px;z-index:1001;background:#fff;border:1px solid #ddd;color:#555;width:40px;height:40px;border-radius:8px;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+#locate-btn:hover{background:#f0f0f0}
+#locate-btn.locating{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 2px 8px rgba(0,0,0,.12)}50%{box-shadow:0 0 0 6px rgba(26,115,232,.2),0 2px 8px rgba(0,0,0,.12)}}
+.my-loc-dot{width:16px;height:16px;background:#1a73e8;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(26,115,232,.3),0 2px 6px rgba(0,0,0,.3)}
+.leaflet-popup-content-wrapper{background:#fff!important;border:1px solid #e0e0e0!important;border-radius:10px!important;box-shadow:0 4px 20px rgba(0,0,0,.12)!important;padding:0!important}
+.leaflet-popup-content{margin:0!important;width:270px!important}
+.leaflet-popup-tip{background:#fff!important;border:1px solid #e0e0e0!important;border-top:none!important;border-left:none!important}
+.popup-inner{padding:14px 16px}
+.popup-inner .p-cat{font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;color:#fff;display:inline-block;margin-bottom:4px}
+.popup-inner .p-name{font-size:15px;font-weight:900;color:#222;margin-bottom:4px}
+.popup-inner .p-note{font-size:11px;color:#666;line-height:1.5;margin-bottom:6px}
+.popup-inner .p-meta{display:flex;gap:10px;font-size:11px;color:#888}
+.popup-inner .p-meta .star{color:#f5a623}
+.popup-inner .p-addr{font-size:11px;color:#888;margin-top:6px;line-height:1.4}
+.popup-inner .p-link{display:inline-block;margin-top:8px;font-size:12px;color:#1a73e8;text-decoration:none;font-weight:500}
+.popup-inner .p-link:hover{text-decoration:underline}
+.cm{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:2px solid #fff;border-radius:50%;color:#fff;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .2s}
+.cm:hover{transform:scale(1.2)}
+.cm.hl{transform:scale(1.3);box-shadow:0 0 0 3px rgba(0,0,0,.15),0 3px 10px rgba(0,0,0,.3)}
+@media(max-width:640px){#sidebar{width:85%}#toggle-sidebar{left:85%}#toggle-sidebar.collapsed{left:0}h1{font-size:12px}#header{padding:8px 12px}}
+</style>
+</head>
+<body>
+<div id="header">
+<div class="header-top"><div><h1>台中美食地圖 — 43 間精選</h1><div class="subtitle">伴手禮 + 咖啡 + 甜點 + 茶館</div></div></div>
+<div class="filters">
+<button class="fbtn active" data-cat="souvenir" onclick="toggleCat('souvenir')">🎁 伴手禮 (22)</button>
+<button class="fbtn active" data-cat="coffee" onclick="toggleCat('coffee')">☕ 咖啡 (5)</button>
+<button class="fbtn active" data-cat="dessert" onclick="toggleCat('dessert')">🍰 甜點 (12)</button>
+<button class="fbtn active" data-cat="tea" onclick="toggleCat('tea')">🍵 茶館 (4)</button>
+</div>
+</div>
+<div id="map"></div>
+<button id="toggle-sidebar" onclick="toggleSidebar()">◀</button>
+<button id="locate-btn" onclick="locateMe()">📍</button>
+<div id="sidebar"><div class="sidebar-header"><h2>📋 店家列表</h2><span style="font-size:11px;color:#aaa">43 間</span></div><div class="sidebar-list" id="sidebarList"></div></div>
+<script>
+const CAT_COLORS={souvenir:'#ea4335',coffee:'#795548',dessert:'#e91e63',tea:'#2e7d32'};
+const CAT_LABELS={souvenir:'伴手禮',coffee:'咖啡',dessert:'甜點',tea:'茶館'};
+const shops=[
+// === 伴手禮 22 間 ===
+{id:1,cat:'souvenir',name:"如邑堂 太陽餅",lat:24.1849027,lng:120.6400077,note:"📌必買：太陽餅（65:35黃金皮餡比，120層酥皮，麥芽流心內餡，甜而不膩）",rating:4.4,reviews:3177,address:"西屯區漢翔路235號",gmaps:"https://maps.google.com/?q=如邑堂太陽餅+台中"},
+{id:2,cat:'souvenir',name:"坂神本舖 長崎蛋糕",lat:24.1429936,lng:120.6791783,note:"📌必買：長崎蛋糕（僅麵粉+雞蛋+麥芽，綿密蓬鬆。無電話預訂、無宅配，現場排隊限定）",rating:4.2,reviews:2287,address:"中區臺灣大道一段388號",gmaps:"https://maps.google.com/?q=坂神本舖長崎蛋糕+台中"},
+{id:3,cat:'souvenir',name:"讓一糖 檸檬蛋糕",lat:24.1341675,lng:120.6363169,note:"📌必買：檸檬蛋糕（天然奶油+中澤鮮奶油+檸檬皮，入口即化。每人限購3顆，預約排4個月）",rating:3.8,reviews:1685,address:"南屯區黎明路一段892號",gmaps:"https://maps.google.com/?q=讓一糖+台中"},
+{id:4,cat:'souvenir',name:"creammm.t 檸檬塔/司康",lat:24.1501197,lng:120.6619403,note:"📌必買：花型檸檬塔（酸口奶油+薄脆杏仁塔皮）、手工司康（酥鬆濕潤配自製奶油果醬）",rating:4.4,reviews:1232,address:"西區美村路一段189號",gmaps:"https://maps.google.com/?q=creammm.t+台中"},
+{id:5,cat:'souvenir',name:"一福堂 檸檬餅",lat:24.1389196,lng:120.6808353,note:"📌必買：檸檬餅（微脆檸檬白巧克力包覆鬆綿蛋糕，先脆口再鬆軟，清爽不膩）",rating:4.7,reviews:813,address:"中區自由路二段19號",gmaps:"https://maps.google.com/?q=一福堂老店+台中"},
+{id:6,cat:'souvenir',name:"香格禮坊 蛋黃酥",lat:24.1603961,lng:120.6699598,note:"📌必買：蛋黃酥（$42/顆，薄皮柔軟+綿密紅豆泥+鹹蛋黃，在地人才知道的老字號）",rating:4.5,reviews:2416,address:"北區梅亭街557號",gmaps:"https://maps.google.com/?q=香格禮坊+台中"},
+{id:7,cat:'souvenir',name:"日出 宮原眼科",lat:24.1378278,lng:120.6835552,note:"📌必買：土鳳梨酥（真鳳梨入餡，皮薄餡多有纖維感，包裝精美送禮首選）",rating:4.3,reviews:31868,address:"中區中山路20號",gmaps:"https://maps.google.com/?q=宮原眼科+台中"},
+{id:8,cat:'souvenir',name:"六月初一 8結蛋捲",lat:24.1309173,lng:120.6620765,note:"📌必買：8結蛋捲（首創扭轉打結造型，酥脆空氣口感，滿口蛋香，日銷1300盒）",rating:4.3,reviews:3914,address:"南區美村路二段19號",gmaps:"https://maps.google.com/?q=六月初一8結蛋捲+台中"},
+{id:9,cat:'souvenir',name:"短腿阿鹿餅乾",lat:24.1753723,lng:120.6463462,note:"📌必買：奶油餅乾（入口即化+濃厚奶油香。全店只賣一種，無宅配，每天現做限量）",rating:4.3,reviews:3129,address:"西屯區福星路593號",gmaps:"https://maps.google.com/?q=短腿阿鹿+逢甲"},
+{id:10,cat:'souvenir',name:"Mr.啃 甜燒餅",lat:24.1410741,lng:120.6598683,note:"📌必買：海鹽甜燒餅（層層酥脆餅皮+糖香+海鹽鹹甜交替。全台最難買，關注FB搶現貨）",rating:3.5,reviews:158,address:"西區存中街35號",gmaps:"https://maps.google.com/?q=Mr啃+台中"},
+{id:11,cat:'souvenir',name:"今日蜜麻花之家",lat:24.1498237,lng:120.66243,note:"📌必買：蜜麻花（麥芽糖漿包裹，綿中帶酥不黏牙。50年老店，每天幾小時完售）",rating:4.0,reviews:813,address:"西區中興七巷12號",gmaps:"https://maps.google.com/?q=今日蜜麻花之家+台中"},
+{id:12,cat:'souvenir',name:"禾雅堂 經典乳酪蛋糕",lat:24.1777762,lng:120.7393762,note:"📌必買：重乳酪＆輕乳酪蛋糕（小巧可麗露尺寸，獨立包裝方便分食。僅週三六日營業）",rating:4.7,reviews:1010,address:"北屯區廍子路725號",gmaps:"https://maps.google.com/?q=禾雅堂經典乳酪蛋糕+台中"},
+{id:13,cat:'souvenir',name:"鴻鼎菓子 噠啵曲奇",lat:24.257819,lng:120.7287349,note:"📌必買：噠啵曲奇（海鹽摩卡+可可歐蕾，中間夾72%濃郁黑巧克力，酥脆滑順）",rating:4.8,reviews:2891,address:"豐原區圓環北路二段399號",gmaps:"https://maps.google.com/?q=鴻鼎菓子+豐原"},
+{id:14,cat:'souvenir',name:"花鳥川水果千層",lat:24.1377186,lng:120.6609034,note:"📌必買：檸檬千層（醃製蘋果切片+高酸度檸檬千層，酸甜豐富。需電話預訂）",rating:4.3,reviews:891,address:"西區美村路一段596巷14號",gmaps:"https://maps.google.com/?q=花鳥川水果千層+台中"},
+{id:15,cat:'souvenir',name:"不二糕餅 蛋黃酥",lat:24.144956,lng:120.6339902,note:"📌必買：蛋黃酥、芙令卡（台式馬卡龍改良版，雲朵口感入口即化。每日限量售完為止）",rating:4.6,reviews:5476,address:"南屯區永春東七路725號",gmaps:"https://maps.google.com/?q=不二糕餅+台中"},
+{id:16,cat:'souvenir',name:"H.YEH 丹麥棒",lat:24.251635,lng:120.56466,note:"📌必買：丹麥棒（媲美可頌極致酥脆+灑滿顆粒砂糖。海線最強伴手禮，要提早到）",rating:4.2,reviews:988,address:"沙鹿區錦義街143號",gmaps:"https://maps.google.com/?q=H.YEH可頌專賣店+沙鹿"},
+{id:17,cat:'souvenir',name:"劉麵包廠 蘋果麵包",lat:24.1468054,lng:120.6694869,note:"📌必買：蘋果麵包（沒有蘋果的童年回憶，鬆軟簡樸淡淡香甜，福利社經典再現）",rating:4.1,reviews:659,address:"西區向上路一段2-3號",gmaps:"https://maps.google.com/?q=劉麵包廠+台中"},
+{id:18,cat:'souvenir',name:"雪花齋 毛巾卷蛋糕",lat:24.25201,lng:120.718361,note:"📌必買：毛巾卷蛋糕（古早味雞蛋香蛋糕捲+細砂糖，清末傳承至今的豐原百年老店）",rating:3.9,reviews:312,address:"豐原區中正路198號",gmaps:"https://maps.google.com/?q=雪花齋+豐原"},
+{id:19,cat:'souvenir',name:"向陽房 地瓜燒",lat:24.2812287,lng:120.6013639,note:"📌必買：地瓜燒（台農57號地瓜，原形原天然，6種口味3種吃法。台中十大伴手禮首獎）",rating:4.1,reviews:16,address:"清水區五厝二街89號",gmaps:"https://maps.google.com/?q=向陽房+台中清水"},
+{id:20,cat:'souvenir',name:"俊美食品 鳳梨酥",lat:24.145936,lng:120.6527666,note:"📌必買：鳳梨酥、松子酥、杏仁餅、太陽餅（台中老牌伴手禮，傳統路線口碑好）",rating:4.2,reviews:1399,address:"西區東興路三段23號",gmaps:"https://maps.google.com/?q=俊美食品+台中"},
+{id:21,cat:'souvenir',name:"上和園滷味 雞爪凍",lat:24.1496137,lng:120.6850815,note:"📌必買：雞爪凍、豬耳朵、大腸頭（透明盒冷滷味，入味彈嫩。台中火車站旁）",rating:4.0,reviews:1521,address:"北區育才街4號",gmaps:"https://maps.google.com/?q=上和園滷味+台中"},
+{id:22,cat:'souvenir',name:"七賢紅麴米糕",lat:24.1010664,lng:120.6838371,note:"📌必買：紅麴米糕（桂圓酒香，軟Q口感。保存期3天，建議LINE預訂當天取貨）",rating:4.5,reviews:284,address:"大里區大里路217-2號",gmaps:"https://maps.google.com/?q=七賢紅麴米糕+台中大里"},
+// === 咖啡 5 間 ===
+{id:24,cat:'coffee',name:"HAUSINC CAFE",lat:24.1618912,lng:120.6677514,note:"📌必點：手沖單品、拿鐵。植物園旁，週一公休",rating:4.6,reviews:927,address:"北區中台西路39號",gmaps:"https://maps.google.com/?q=HAUSINC+CAFE+台中"},
+{id:25,cat:'coffee',name:"The Factory Mojocoffee",lat:24.1549084,lng:120.6570888,note:"📌必點：精品手沖、燕麥拿鐵",rating:4.4,reviews:1212,address:"西區精誠六街22號",gmaps:"https://maps.google.com/?q=The+Factory+Mojocoffee+台中"},
+{id:26,cat:'coffee',name:"coffee stopover",lat:24.1479617,lng:120.6680133,note:"📌必點：手沖單品（豆種自選）、刨冰摩卡。週日公休",rating:4.8,reviews:1895,address:"西區民權路217巷24號",gmaps:"https://maps.google.com/?q=coffee+stopover+台中"},
+{id:27,cat:'coffee',name:"coffee stopover black",lat:24.1454638,lng:120.67187,note:"📌必點：2×1冰義式濃縮、現場烘豆。週一日公休",rating:4.8,reviews:342,address:"西區福龍街7號1樓",gmaps:"https://maps.google.com/?q=coffee+stopover+black+台中"},
+{id:28,cat:'coffee',name:"CREAMY DAILY CAFE",lat:24.1306623,lng:120.6407778,note:"📌必點：手沖咖啡、千層蛋糕、草莓千層（季節限定）。週一日公休",rating:4.5,reviews:275,address:"南屯區豐功路17號",gmaps:"https://maps.google.com/?q=CREAMY+DAILY+CAFE+台中"},
+// === 甜點 12 間 ===
+{id:23,cat:'dessert',name:"查壹茶 Charlie Tea & Coffee",lat:24.1902699,lng:120.613315,note:"📌必買：巴斯克乳酪蛋糕、可頌鬆餅。週四五六公休",rating:4.6,reviews:523,address:"西屯區西屯路三段166-59號",gmaps:"https://maps.google.com/?q=查壹茶+Charlie+Tea+台中"},
+{id:29,cat:'dessert',name:"弄瓦手工餅乾",lat:24.178263,lng:120.741151,note:"📌必買：伯爵茶餅乾、抹茶餅乾、鹹蛋糕",rating:4.3,reviews:460,address:"北屯區橫坑巷19之8號",gmaps:"https://maps.google.com/?q=弄瓦手工餅乾+台中"},
+{id:30,cat:'dessert',name:"山姆安娜 SamAna",lat:24.1390767,lng:120.6617709,note:"📌必買：法式麵包、可頌、甜點。限量手作，售完為止",rating:4.4,reviews:469,address:"西區美村路一段575號",gmaps:"https://maps.google.com/?q=山姆安娜SamAna+台中"},
+{id:31,cat:'dessert',name:"MINIMAL",lat:24.1516994,lng:120.6623404,note:"📌必吃：在地茶葉義式冰淇淋（碧螺春/鐵觀音）。米其林一星，僅外帶",rating:4.4,reviews:852,address:"西區美村路一段133巷16號",gmaps:"https://maps.google.com/?q=MINIMAL+台中+冰淇淋"},
+{id:32,cat:'dessert',name:"法米法式甜點（文心店）",lat:24.1321311,lng:120.6540588,note:"📌必買：法式水果塔、冰淇淋。全預約制，週二公休",rating:4.2,reviews:644,address:"南屯區文心南五路一段10號",gmaps:"https://maps.google.com/?q=法米法式甜點+文心+台中"},
+{id:33,cat:'dessert',name:"Spirited Bakery",lat:24.1391994,lng:120.6624777,note:"📌必買：肉桂捲、布朗尼、紅蘿蔔蛋糕。週二三公休",rating:4.6,reviews:1397,address:"西區五權西四街11號",gmaps:"https://maps.google.com/?q=Spirited+Bakery+台中"},
+{id:34,cat:'dessert',name:"蒔初甜點 五權店",lat:24.1378883,lng:120.6589627,note:"📌必買：季節水果塔、玫瑰蜂蜜檸檬拿鐵。二樓可內用",rating:4.3,reviews:1251,address:"西區五權西六街69號",gmaps:"https://maps.google.com/?q=蒔初甜點+五權+台中"},
+{id:35,cat:'dessert',name:"La Petite Tarte 樂緹波兒",lat:24.1347887,lng:120.6526549,note:"📌必買：手作塔派、千層蛋糕。週二公休",rating:4.5,reviews:662,address:"南屯區永春東路123號",gmaps:"https://maps.google.com/?q=La+Petite+Tarte+台中"},
+{id:36,cat:'dessert',name:"壹日鮮ケーキ屋",lat:24.166243,lng:120.652880,note:"📌必買：客製蛋糕（草莓慕斯人氣款）、聖代羅黑泡芙",rating:4.9,reviews:1822,address:"西屯區西屯路二段101-3號",gmaps:"https://maps.google.com/?q=壹日鮮+台中"},
+{id:37,cat:'dessert',name:"五吉廊 Fortune Gallery",lat:24.1570152,lng:120.6933789,note:"📌必買：聖代羅黑泡芙、70%布丁、肉桂捲、日王酥",rating:4.8,reviews:87,address:"北區育樂街25號",gmaps:"https://maps.google.com/?q=五吉廊+Fortune+Gallery+台中"},
+{id:38,cat:'dessert',name:"Crepe Cocoya 蛋糕",lat:24.1492382,lng:120.6612504,note:"📌必買：抹茶草莓可麗餅、Nutella冰淇淋可麗餅",rating:4.4,reviews:556,address:"西區公正路140巷1弄1號",gmaps:"https://maps.google.com/?q=Crepe+Cocoya+台中"},
+{id:43,cat:'dessert',name:"Haritts Donuts & Coffee",lat:24.1484807,lng:120.6636918,note:"📌必買：肉桂葡萄乾甜甜圈、奶油起司甜甜圈。每日限量",rating:4.5,reviews:1849,address:"西區中興街128巷6號",gmaps:"https://maps.google.com/?q=Haritts+Donuts+Coffee+台中"},
+// === 茶館 4 間 ===
+{id:39,cat:'tea',name:"不一 Wagashi Matcha",lat:24.1474498,lng:120.6564188,note:"📌必吃：板前現做和菓子、抹茶蕨餅。最多6人，需預約付訂金",rating:4.9,reviews:76,address:"西區精誠廿二街27號一樓",gmaps:"https://maps.google.com/?q=不一+Wagashi+Matcha+台中"},
+{id:40,cat:'tea',name:"秋山堂",lat:24.1413118,lng:120.6643298,note:"📌必喝：阿里山青心烏龍、高山茶。國美館旁B1，自助泡茶空間",rating:4.6,reviews:317,address:"西區五權西路一段2號",gmaps:"https://maps.google.com/?q=秋山堂+台中"},
+{id:41,cat:'tea',name:"兆兆茶苑",lat:24.1451957,lng:120.6635486,note:"📌必喝：精選烏龍茶（茶師逐一講解）、搭配茶點心。週日公休",rating:4.8,reviews:328,address:"西區向上路一段79巷66弄22號",gmaps:"https://maps.google.com/?q=兆兆茶苑+台中"},
+{id:42,cat:'tea',name:"吃茶三千 台灣概念店",lat:24.1545622,lng:120.6485239,note:"📌必喝：珍珠奶茶、茶體驗課程（專人導覽，需預約）",rating:4.8,reviews:16936,address:"南屯區大英街607號",gmaps:"https://maps.google.com/?q=吃茶三千台灣概念店+台中"},
+];
+
+const map=L.map('map',{center:[24.155,120.66],zoom:12,zoomControl:false});
+L.control.zoom({position:'bottomright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+
+const markers={};const catVisible={souvenir:true,coffee:true,dessert:true,tea:true};
+let counter={souvenir:0,coffee:0,dessert:0,tea:0};
+
+shops.forEach(s=>{
+  counter[s.cat]++;
+  const c=CAT_COLORS[s.cat];
+  const icon=L.divIcon({className:'',html:`<div class="cm" id="mk-${s.id}" style="background:${c}">${counter[s.cat]}</div>`,iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16]});
+  const popup=`<div class="popup-inner">
+    <span class="p-cat" style="background:${c}">${CAT_LABELS[s.cat]}</span>
+    <div class="p-name">${s.name}</div>
+    <div class="p-note">${s.note}</div>
+    <div class="p-meta"><span><span class="star">★</span> ${s.rating}</span><span>${s.reviews.toLocaleString()} 則</span></div>
+    <div class="p-addr">📍 ${s.address}</div>
+    <a class="p-link" href="${s.gmaps}" target="_blank">Google Maps →</a>
+  </div>`;
+  const m=L.marker([s.lat,s.lng],{icon}).addTo(map);
+  m.bindPopup(popup,{maxWidth:280,closeButton:false});
+  m.on('click',()=>hlShop(s.id));
+  markers[s.id]={marker:m,cat:s.cat};
+});
+
+// Sidebar
+const listEl=document.getElementById('sidebarList');
+let curCat=null;
+['souvenir','coffee','dessert','tea'].forEach(cat=>{
+  const hdr=document.createElement('div');
+  hdr.style.cssText=`padding:10px 20px 6px;font-size:12px;font-weight:700;color:${CAT_COLORS[cat]};border-top:2px solid ${CAT_COLORS[cat]}20;margin-top:4px`;
+  hdr.textContent=`${cat==='souvenir'?'🎁':cat==='coffee'?'☕':cat==='dessert'?'🍰':'🍵'} ${CAT_LABELS[cat]}`;
+  listEl.appendChild(hdr);
+  shops.filter(s=>s.cat===cat).forEach(s=>{
+    const d=document.createElement('div');d.className='shop-item';d.id=`si-${s.id}`;d.dataset.cat=cat;
+    d.innerHTML=`<div class="shop-name">${s.name}</div><div class="shop-note">${s.note}</div><div class="shop-rating">★ ${s.rating}　${s.reviews.toLocaleString()} 則</div>`;
+    d.addEventListener('click',()=>{map.setView([s.lat,s.lng],16,{animate:true});markers[s.id].marker.openPopup();hlShop(s.id);});
+    listEl.appendChild(d);
+  });
+});
+
+function hlShop(id){
+  document.querySelectorAll('.shop-item').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.cm').forEach(e=>e.classList.remove('hl'));
+  const si=document.getElementById(`si-${id}`);const mk=document.getElementById(`mk-${id}`);
+  if(si){si.classList.add('active');si.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  if(mk)mk.classList.add('hl');
+}
+
+function toggleCat(cat){
+  catVisible[cat]=!catVisible[cat];
+  document.querySelector(`.fbtn[data-cat="${cat}"]`).classList.toggle('active',catVisible[cat]);
+  Object.entries(markers).forEach(([id,o])=>{
+    if(o.cat===cat){catVisible[cat]?o.marker.addTo(map):map.removeLayer(o.marker);}
+  });
+  document.querySelectorAll(`.shop-item[data-cat="${cat}"]`).forEach(el=>{el.style.display=catVisible[cat]?'':'none';});
+  // Also toggle category headers
+  listEl.querySelectorAll('div').forEach(d=>{if(d.textContent.includes(CAT_LABELS[cat])&&!d.classList.contains('shop-item'))d.style.display=catVisible[cat]?'':'none';});
+}
+
+let sOpen=true;
+function toggleSidebar(){
+  sOpen=!sOpen;
+  document.getElementById('sidebar').classList.toggle('closed',!sOpen);
+  const btn=document.getElementById('toggle-sidebar');
+  btn.classList.toggle('collapsed',!sOpen);
+  btn.textContent=sOpen?'◀':'▶';
+}
+
+let myMk=null,myCir=null;
+function locateMe(){
+  const btn=document.getElementById('locate-btn');
+  if(!navigator.geolocation){alert('瀏覽器不支援定位');return;}
+  btn.classList.add('locating');
+  navigator.geolocation.getCurrentPosition(p=>{
+    btn.classList.remove('locating');
+    const{latitude:la,longitude:ln,accuracy:ac}=p.coords;
+    if(myMk)map.removeLayer(myMk);if(myCir)map.removeLayer(myCir);
+    myMk=L.marker([la,ln],{icon:L.divIcon({className:'',html:'<div class="my-loc-dot"></div>',iconSize:[16,16],iconAnchor:[8,8]}),zIndexOffset:9999}).addTo(map).bindPopup('<div style="padding:8px;font-size:13px;font-weight:700;color:#1a73e8">📍 你的位置</div>',{closeButton:false});
+    myCir=L.circle([la,ln],{radius:ac,color:'rgba(26,115,232,.4)',fillColor:'rgba(26,115,232,.08)',fillOpacity:1,weight:2}).addTo(map);
+    map.setView([la,ln],14,{animate:true});myMk.openPopup();
+  },e=>{btn.classList.remove('locating');alert(['','定位被拒絕','無法取得位置','定位逾時'][e.code]);},{enableHighAccuracy:true,timeout:10000,maximumAge:0});
+}
+</script>
+</body>
+</html>

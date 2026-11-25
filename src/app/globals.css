@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f1e7;
+  --foreground: #241c16;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Noto Sans TC", sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+}
+
+.map-pane {
+  order: 1;
+  height: 46dvh;
+  flex: none;
+  min-height: 220px;
+}
+
+.list-pane {
+  order: 2;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace.mode-map .list-pane {
+  display: none;
+}
+
+.workspace.mode-map .map-pane {
+  height: auto;
+  flex: 1;
+}
+
+.workspace.mode-list .map-pane {
+  display: none;
+}
+
+.workspace.mode-list .list-pane {
+  flex: 1;
+}
+
+@media (min-width: 900px) {
+  .workspace {
+    flex-direction: row;
+  }
+
+  .list-pane {
+    order: 1;
+    display: flex !important;
+    width: 390px;
+    height: auto;
+    flex: none;
+    border-right: 1px solid #eadfce;
+  }
+
+  .map-pane {
+    order: 2;
+    display: block !important;
+    height: auto;
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+.pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.pin.on {
+  transform: scale(1.28);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.16), 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.me-dot {
+  width: 16px;
+  height: 16px;
+  background: #1a73e8;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.3);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  padding: 0;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  width: 230px !important;
+}
+
+.pop {
+  padding: 12px 14px;
+}
+
+.pop-cat {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.pop-name {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.pop-note,
+.pop-addr,
+.pop-meta {
+  margin-top: 4px;
+  color: #6b5c4d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.star {
+  color: #d0891f;
+  font-weight: 700;
+}
+
+.pop-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pop-actions button,
+.pop-actions a {
+  color: #1a56c4;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.wheel {
+  transition: transform 4.2s cubic-bezier(0.12, 0.72, 0.08, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel {
+    transition: none;
+  }
+}
